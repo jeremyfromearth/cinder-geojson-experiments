@@ -2,29 +2,30 @@
 #include "cinder/app/RendererGl.h"
 #include "cinder/gl/gl.h"
 #include "cinder/Json.h"
-
-#include <math.h>
-#define DEG2RAD(a)   ((a) / (180 / M_PI))
-#define RAD2DEG(a)   ((a) * (180 / M_PI))
-#define EARTH_RADIUS 6378137
-
-double lat2y_d(double lat) { return RAD2DEG( log(tan( DEG2RAD(lat) / 2 +  M_PI/4 )) ); }
-double lon2x_d(double lon) { return lon; }
+#include "cinder/Shape2d.h"
+#include "projections.h"
 
 using namespace ci;
 using namespace ci::app;
 using namespace std;
 
-class CountryShapesApp : public App {
+typedef std::function<vec2(float lon, float lat)> projection_fn;
+
+class MapProjectionsApp : public App {
   public:
 	void setup() override;
 	void draw() override;
-  Shape2d create_shape(JsonTree coordinates);
+  Shape2d create_shape(JsonTree coords, projection_fn fn);
   std::vector<Shape2d> shapes;
+  projection_fn projfn;
 };
 
-void CountryShapesApp::setup() {
+void MapProjectionsApp::setup() {
+  // Setup the app
   setWindowSize(960, 540);
+  
+  // Initialize the projection function to a standard mercator
+  projfn = projections::mercator;
   
   // Load the data
   ci::JsonTree data(loadAsset("../../assets/data/countries.geo.json"));
@@ -40,7 +41,7 @@ void CountryShapesApp::setup() {
     // Handle Polygon geometries
     if(type == "Polygon") {
       shapes.push_back(
-        create_shape(geom.getChild("coordinates")[0]));
+        create_shape(geom.getChild("coordinates")[0], projfn));
     }
     
     // Handle MultiPolygon geometries
@@ -48,28 +49,27 @@ void CountryShapesApp::setup() {
       ci::JsonTree polygons = geom.getChild("coordinates");
       for(auto p : polygons) {
         ci::JsonTree coords = p[0];
-        shapes.push_back(create_shape(coords));
+        shapes.push_back(create_shape(coords, projfn));
       }
     }
   }
 }
 
 // Create shape objects
-Shape2d CountryShapesApp::create_shape(JsonTree coordinates) {
+Shape2d MapProjectionsApp::create_shape(JsonTree coordinates, projection_fn fn) {
   Shape2d s;
   for(auto ll : coordinates) {
     float lon = ll.getValueAtIndex<float>(0);
     float lat = ll.getValueAtIndex<float>(1);
-    vec2 p(lon, lat);
+    vec2 p = fn(lon, lat);
     s.empty() ? s.moveTo(p) : s.lineTo(p);
   }
   s.close();
   return s;
 }
 
-void CountryShapesApp::draw() {
-	gl::clear(Color(0, 0, 0));
-  
+void MapProjectionsApp::draw() {
+	gl::clear( Color( 0, 0, 0 ) );
   ci::gl::ScopedMatrices m;
   gl::translate(getWindowCenter());
   
@@ -85,4 +85,6 @@ void CountryShapesApp::draw() {
   for(auto s : shapes) gl::draw(s);
 }
 
-CINDER_APP( CountryShapesApp, RendererGl )
+CINDER_APP( MapProjectionsApp, RendererGl )
+
+
