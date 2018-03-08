@@ -3,14 +3,6 @@
 #include "cinder/gl/gl.h"
 #include "cinder/Json.h"
 
-#include <math.h>
-#define DEG2RAD(a)   ((a) / (180 / M_PI))
-#define RAD2DEG(a)   ((a) * (180 / M_PI))
-#define EARTH_RADIUS 6378137
-
-double lat2y_d(double lat) { return RAD2DEG( log(tan( DEG2RAD(lat) / 2 +  M_PI/4 )) ); }
-double lon2x_d(double lon) { return lon; }
-
 using namespace ci;
 using namespace ci::app;
 using namespace std;
